@@ -10,7 +10,7 @@ fileFound=False
 targetFileDir = "/"
 homeDir = str(Path.home())
 printHeight = 20
-penOffsetZ = 4 #pen is 4mm below nozzle
+penOffsetZ = 2 #pen is 2mm below nozzle
 penOffsetX = -43
 penOffsetY = -26
 printerMaxX = 235
@@ -124,7 +124,7 @@ label_file_explorer = Label(window,
                             width = 100, height = 4,
                             fg = "white")
 
-sli1 = Scale(window, from_=50, to=0.5, tickinterval=0.1, orient=VERTICAL, bg = "RED")
+sli1 = Scale(window, from_=50, to=0, tickinterval=0.1, orient=VERTICAL, bg = "RED")
 sli1.place(relx=0.15,rely=0.06,relwidth=0.05, relheight=0.8)
 
   
