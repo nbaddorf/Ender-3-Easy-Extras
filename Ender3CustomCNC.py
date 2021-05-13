@@ -6,19 +6,89 @@ import shutil
 import os
 import re
 
-penOffsetZ = 16 #pen is 16mm below nozzle.
-penOffsetX = -43 #pen is 43mm to the left of the hottend when looking at printer head on.
-penOffsetY = -26 #pen is 26mm toward me when I stand looking streight at the front of the printer.
+penOffsetZ = 13.5 #pen is 16mm below nozzle.
+penOffsetX = -47 #pen is 43mm to the left of the hottend when looking at printer head on.
+penOffsetY = -30 #pen is 26mm toward me when I stand looking streight at the front of the printer.
 printerMaxX = 235
 printerMaxY = 235
 
-
+#CNC
 fileFound=False
 targetFileDir = "/"
 homeDir = str(Path.home())
 printHeight = 2
 toolChaingeState = True
 BLstate = True
+
+#3d print
+PrintWindow=None
+printFile = "/"
+printSlider=None
+print_chaingefilament=None
+
+#####################----3d print editing-----###################
+def open3d():
+    global PrintWindow
+    global printSlider
+    global print_chaingefilament
+    PrintWindow=Toplevel(window)
+    PrintWindow.title("3d printing tool")
+    PrintWindow.geometry("800x500")
+
+    printLabel = Label(PrintWindow, text="Here you can post process gcode from cura.")
+    printLabel.grid(column=2,row=0, sticky=S, pady=0)
+
+    print_explore = Button(PrintWindow,text = "Browse gcode",command = browsePrintFile, bg="white")
+    print_explore.grid(column = 2, row = 1)
+
+    printSlider = Scale(PrintWindow, from_=50, to=0, tickinterval=0.1, orient=VERTICAL, bg = "RED")
+    printSlider.grid(pady=10,padx=10, sticky=S+N, rowspan=3)#, column=1, row=13)
+
+    print_chaingefilament = Button(PrintWindow,text = "Chainge Filament at: 0",command = chaingeFilament, bg="white")
+    print_chaingefilament.grid(column = 2, row = 3)
+
+    printSlider.bind('<ButtonRelease>',updatePrint)
+
+def browsePrintFile():
+    global PrintWindow
+    global printFile
+    global printSlider
+    filename = filedialog.askopenfilename(initialdir = homeDir, title = "Select File",filetypes = (("all files","*.*"),("Gcode files","*.gcode")))
+    if not filename:
+        print("no file selected")
+    else:
+        printFile = filename
+        findTxt = False
+        with open(printFile) as temp_f:
+            datafile = temp_f.readlines()
+        i=0
+        for line in datafile:
+            if (';LAYER:' + str(i)) in line:
+                i+=1
+                #print("found layer: " + str(i))
+        #print("working: " + str(i))
+        printSlider.config(from_=i)
+
+def chaingeFilament():
+    global printSlider
+    global printFile
+    print("chainging filament at layer: " + str(printSlider.get()))
+    dirname, fname = os.path.split(printFile)
+    curntName, extensionName = fname.split(".")
+    with open(printFile) as f_old, open(dirname + "/" + curntName + "Modified" + extensionName, "w") as f_new:
+        for line in f_old:
+            f_new.write(line)
+            if ';LAYER:' + str(printSlider.get()) in line:
+                f_new.write("M900\n")
+
+def updatePrint(event):
+    global printSlider
+    global print_chaingefilament
+    #print("updating: " + str(printSlider.get()))
+    print_chaingefilament.config(text="Insert Filament Chainge at: " + str(printSlider.get()))
+
+
+################################-----CNC-----##################
 
 def toolChaingeSwitch():
     global toolChaingeState
@@ -113,7 +183,7 @@ def runProgram():
         else:
             print("NICK ADD G4 P10000 command here in gcode to wate 10 seconds")
         #print(textF)
-        printHeight = sli1.get()
+        #printHeight = sli1.get()
         #if(edit_string(dirname + "/" + curntName + ".gcode")):
          #   textF = textF.replace("G1 Z-1.000 F50.0", "G1 Z" + str(printHeight + penOffsetZ) + " F150.0")
         with open(dirname + "/" + curntName + ".gcode") as l:
@@ -145,13 +215,13 @@ def runProgram():
                 
                 if 'G1 Z' in li:
                     dta = re.findall('\d*\.?\d+',li)
-                    if (float(dta[1]) <= (penOffsetZ + printHeight)):
-                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
+                    if (float(dta[1]) <= (penOffsetZ - printHeight)):
+                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ - printHeight) + " F" + str(dta[2]) + "\n")
 
                 if 'G0 Z' in li:
                     dta = re.findall('\d*\.?\d+',li)
-                    if (float(dta[1]) <= (penOffsetZ + printHeight)):
-                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
+                    if (float(dta[1]) <= (penOffsetZ - printHeight)):
+                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ - printHeight) + " F" + str(dta[2]) + "\n")
         f.close()
         f = open(dirname + "/" + curntName + ".gcode", "w")
         if stillGoodToGo:
@@ -186,6 +256,7 @@ window.geometry("800x500")
  #       relief=GROOVE,
  #       background="blue",
  #   )
+
 offsetLabel = Label(window, text="Pen printing offset")
 offsetLabel.grid(column=0,row=0, sticky=S, pady=0)
 
@@ -249,6 +320,12 @@ sli1.grid_remove()
 offsetLabel.grid_remove()
 #label_file_explorer.grid_remove()
 toolChaingeSwitch()
+open3d()
 
 # Let the window wait for any events
 window.mainloop()
+PrintWindow.mainloop()
+
+#For drawing on 3d print, read ;Layer height: 0.__ value
+#Read ;MAXZ:_.___ value
+# Read ;LAYER:_ for layer number !!!
