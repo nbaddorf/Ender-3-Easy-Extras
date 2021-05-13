@@ -75,7 +75,7 @@ def chaingeFilament():
     print("chainging filament at layer: " + str(printSlider.get()))
     dirname, fname = os.path.split(printFile)
     curntName, extensionName = fname.split(".")
-    with open(printFile) as f_old, open(dirname + "/" + curntName + "Modified" + extensionName, "w") as f_new:
+    with open(printFile) as f_old, open(dirname + "/" + curntName + "Modified." + extensionName, "w") as f_new:
         for line in f_old:
             f_new.write(line)
             if ';LAYER:' + str(printSlider.get()) in line:
