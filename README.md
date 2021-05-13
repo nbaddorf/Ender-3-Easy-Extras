@@ -1,13 +1,15 @@
 # Ender-3-Easy-Extras
 This program does lots of cool stuff! You can easily add manual filament change code to your gcode file or set up your printer to draw things with a pen based off Easel
 
-#-------------------------------3d Post-Processing Window---------------------------#
+#-------------------------------3d Post-Processing Window------------------------------------------------------#
+
 To use this window, first import your already sliced gcode file. Simply set the slider to the layer you want to insert code, and click on an insert button.
 The inserts available are:n\
 -Manual chainge filament (must have this enabled in printers firmware to work: https://marlinfw.org/docs/gcode/M600.html)
 
 
-#--------------------------------Pen Plotting Window---------------------------------#
+#--------------------------------Pen Plotting Window------------------------------------------------------------#
+
 I made this python program that takes gcode from easel and converts it to work with the Ender 3. Right now the program is setup for pen plotting. THIS IS NOT FINISHED. NOT MY FAULT IF YOUR PRINTER BREAKS FROM THIS.
 
 To use: open Easel: https://easel.inventables.com
