@@ -4,7 +4,7 @@ This program does lots of cool stuff! You can easily add manual filament change 
 #-------------------------------3d Post-Processing Window------------------------------------------------------#
 
 To use this window, first import your already sliced gcode file. Simply set the slider to the layer you want to insert code, and click on an insert button.
-The inserts available are:n\
+The inserts available are: <br />
 -Manual chainge filament (must have this enabled in printers firmware to work: https://marlinfw.org/docs/gcode/M600.html)
 
 
