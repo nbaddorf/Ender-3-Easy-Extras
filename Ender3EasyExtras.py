@@ -5,14 +5,17 @@ from pathlib import Path
 import shutil
 import os
 import re
+import time
 
 penOffsetZ = 11.0 #pen is 16mm below nozzle.
-penOffsetX = -43.5 #pen is 43mm to the left of the hottend when looking at printer head on.
-penOffsetY = -31 #pen is 26mm toward me when I stand looking streight at the front of the printer.
+penOffsetX = -44.5 #pen is 43mm to the left of the hottend when looking at printer head on.
+penOffsetY = -32 #pen is 26mm toward me when I stand looking streight at the front of the printer.
 printerMaxX = 235
 printerMaxY = 235
+penSafetyHeight = 5 #use this value to set the height the pen will go up when not activaly drawing
 
 #CNC
+EaselSaftyHeight = 16
 fileFound=False
 fileFoundGcode = False
 targetFileDirGcode = "/"
@@ -22,6 +25,7 @@ printHeight = 0 # DO NOT CHAINGE
 toolChaingeState = True
 BLstate = True
 layerThickness = 0.24 # NOT IN USE
+maxLayerNum = 0
 
 """
 #3d print
@@ -162,6 +166,7 @@ def browseGcodeFile():
     #print(filename)
     global targetFileDirGcode
     global fileFoundGcode
+    global maxLayerNum
     if not filename:
         print("no file selected")
         fileFoundGcode = False
@@ -177,7 +182,8 @@ def browseGcodeFile():
             if txt in lineT:
                 print(tmpCounter)
                 tmpCounter += 1
-        sli1.configure(from_=tmpCounter -1)
+        maxLayerNum = tmpCounter
+        sli1.configure(from_=tmpCounter)
 
 def edit_string(stringC):
     findTxt = False
@@ -258,13 +264,13 @@ def runProgramStandalone():
                 
                 if 'G1 Z' in li:
                     dta = re.findall('\d*\.?\d+',li)
-                    if (float(dta[1]) <= (penOffsetZ - printHeight)):
-                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ - printHeight) + " F" + str(dta[2]) + "\n")
+                    if (float(dta[1]) <= (penOffsetZ + printHeight)):
+                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
 
                 if 'G0 Z' in li:
                     dta = re.findall('\d*\.?\d+',li)
-                    if (float(dta[1]) <= (penOffsetZ - printHeight)):
-                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ - printHeight) + " F" + str(dta[2]) + "\n")
+                    if (float(dta[1]) <= (penOffsetZ + printHeight)):
+                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
         f.close()
         f = open(dirname + "/" + curntName + ".gcode", "w")
         if stillGoodToGo:
@@ -277,6 +283,9 @@ def runProgramStandalone():
         
 
 def runProgramMix():
+    global EaselSaftyHeight
+    global penSafetyHeight
+    global maxLayerNum
     global fileFoundGcode
     global fileFound
     global targetFileDir
@@ -289,6 +298,9 @@ def runProgramMix():
         stillGoodToGo=True
         dirname, fname = os.path.split(targetFileDir)
         curntName, extensionName = fname.split(".")
+
+        dirnameGcode, fnameGcode = os.path.split(targetFileDirGcode)
+        curntNameGcode, extensionNameGcode = fnameGcode.split(".")
         #shutil.move(targetFileDir, dirname + "/" + curntName + ".gcode")
         #shutil.copy( dirname + "/" + curntName + ".gcode", targetFileDir)
         f = open(dirname + "/" + curntName + ".nc")
@@ -357,20 +369,35 @@ def runProgramMix():
                     dta = re.findall('\d*\.?\d+',li)
                     if (float(dta[1]) <= (penOffsetZ + printHeight)):
                         textF = textF.replace(li, "G1 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
+                    if (float(dta[1]) >= (EaselSaftyHeight)):
+                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ + printHeight + penSafetyHeight) + " F" + str(dta[2]) + "\n")
 
                 if 'G0 Z' in li:
                     dta = re.findall('\d*\.?\d+',li)
                     if (float(dta[1]) <= (penOffsetZ + printHeight)):
                         textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
+                    if (float(dta[1]) <= (EaselSaftyHeight)):
+                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight + penSafetyHeight) + " F" + str(dta[2]) + "\n")
         f.close()
-        f = open(dirname + "/" + curntName + ".gcode", "w")
+        #f = open(dirname + "/" + curntName + ".gcode", "w")
         if stillGoodToGo:
-            f.write(textF)
-            print(textF)
-            index = textFG.find(";LAYER:" + str(tmpCounter))
-            final_string = textFG[:index] + textF + textFG[index:]
-            ff = open(targetFileDirGcode, "w")
-            ff.write(final_string)
+            #f.write(textF)
+            #print(textF)
+            if sli1.get() < maxLayerNum:
+                Newindex = textFG.find(";LAYER:" + str(sli1.get() + 1) + "\n")
+                print(Newindex)
+                final_string = textFG[:Newindex] + ";Ender easy system inserted code\n" + textF + textFG[Newindex:]
+                ff = open(dirname + "/" + curntNameGcode + "CNCMix.gcode", "w")
+                ff.write(final_string)
+            elif sli1.get() == maxLayerNum:
+                Newindex = textFG.find("G91 ;Relative positioning\n")
+                print(Newindex)
+                final_string = textFG[:Newindex] + ";Ender easy system inserted code\n" + textF + textFG[Newindex:]
+                ff = open(dirname + "/" + curntNameGcode + "CNCMix.gcode", "w")
+                ff.write(final_string)
+                window.destroy()
+                time.sleep(0.5)
+                
             #label_file_explorer.configure(text="DONE", fg="white")
         else:
             print("Error in code")
@@ -410,7 +437,7 @@ window.config(background = "gray") #white
 #        background="blue",
 #    )
 
-offsetLabel = Label(window, text="Insert Layer", bg="gray", fg="white")
+offsetLabel = Label(window, text="Insert Cnc code to run after layer", bg="gray", fg="white")
 offsetLabel.grid(column=0,row=0, sticky=S, pady=0)
 
 button_exploreGcode = Button(window,text = "Browse Gcode",command = browseGcodeFile, bg="white")
@@ -435,7 +462,7 @@ EndToolChaingeCode.grid(column=1,row=4, sticky=N, rowspan=2)
 toolSave = Button(window, text="Save Tool Chainge", command=saveToolCode)
 toolSave.grid(column=1,row=6)
 
-descriptionLable = Label(window,text = "To use this program, export a toolpath from easel with:\nPlunge Rate: 50mm/m\nDepth per pass: 1mm\nMaterial size: 235mm by 235mm by 1mm\n",fg = "white", bg="gray")
+descriptionLable = Label(window,text = "To use this program, export a toolpath from easel with:\nPlunge Rate: 50mm/m\nDepth per pass: 1mm\nMaterial size: 235mm by 235mm by 1mm\nSafety Height: 16 or heigher\n",fg = "white", bg="gray")
 descriptionLable.grid(column = 2, row = 0, pady=10)
 
 #label_file_explorer = Label(window,text = "",fg = "white")
