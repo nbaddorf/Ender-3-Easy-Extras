@@ -7,21 +7,24 @@ import os
 import re
 import time
 
+#Set these values to mach your settings
 penOffsetZ = 11.0 #pen is 16mm below nozzle.
 penOffsetX = -44.5 #pen is 43mm to the left of the hottend when looking at printer head on.
 penOffsetY = -32 #pen is 26mm toward me when I stand looking streight at the front of the printer.
-printerMaxX = 235
-printerMaxY = 235
+printerMaxX = 235 #3d printer bed blate size
+printerMaxY = 235 #3d printer bed blate size
 penSafetyHeight = 5 #use this value to set the height the pen will go up when not activaly drawing
+CuraFirstLayerThickness = 0.18 #The thickness of the first layer in your print
 
-#CNC
+
+#CNC DO NOT CHAINGE
 EaselSaftyHeight = 16
 fileFound=False
 fileFoundGcode = False
 targetFileDirGcode = "/"
 targetFileDir = "/"
 homeDir = str(Path.home())
-printHeight = 0 # DO NOT CHAINGE
+printHeight = 0 # DO NOT CHAINGE Set to 0
 toolChaingeState = True
 BLstate = True
 layerThickness = 0.24 # NOT IN USE
@@ -283,6 +286,7 @@ def runProgramStandalone():
         
 
 def runProgramMix():
+    global CuraFirstLayerThickness
     global EaselSaftyHeight
     global penSafetyHeight
     global maxLayerNum
@@ -324,8 +328,12 @@ def runProgramMix():
                 #printHeight = tmpCounter * float(str(third))
                 layerT = float(third)
                 print(third)
+        if sli1.get() == 1:
+            printHeight = CuraFirstLayerThickness
+        elif sli1.get() > 1:
+            printHeight = CuraFirstLayerThickness + ((sli1.get() - 1) * layerT)
         print(layerThickness)
-        printHeight = sli1.get() * layerT
+        #printHeight = sli1.get() * layerT
         print(printHeight)
 
         
@@ -368,27 +376,31 @@ def runProgramMix():
                 if 'G1 Z' in li:
                     dta = re.findall('\d*\.?\d+',li)
                     if (float(dta[1]) <= (penOffsetZ + printHeight)):
-                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
+                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ + layerT + printHeight) + " F" + str(dta[2]) + "\n")
                     if (float(dta[1]) >= (EaselSaftyHeight)):
-                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ + printHeight + penSafetyHeight) + " F" + str(dta[2]) + "\n")
+                        textF = textF.replace(li, "G1 Z" + str(penOffsetZ + printHeight + layerT + penSafetyHeight) + " F" + str(dta[2]) + "\n")
 
                 if 'G0 Z' in li:
                     dta = re.findall('\d*\.?\d+',li)
                     if (float(dta[1]) <= (penOffsetZ + printHeight)):
-                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight) + " F" + str(dta[2]) + "\n")
+                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight + layerT) + " F" + str(dta[2]) + "\n")
                     if (float(dta[1]) <= (EaselSaftyHeight)):
-                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight + penSafetyHeight) + " F" + str(dta[2]) + "\n")
+                        textF = textF.replace(li, "G0 Z" + str(penOffsetZ + printHeight + layerT + penSafetyHeight) + " F" + str(dta[2]) + "\n")
         f.close()
         #f = open(dirname + "/" + curntName + ".gcode", "w")
         if stillGoodToGo:
             #f.write(textF)
             #print(textF)
             if sli1.get() < maxLayerNum:
-                Newindex = textFG.find(";LAYER:" + str(sli1.get() + 1) + "\n")
+                Newindex = textFG.find(";LAYER:" + str(sli1.get()) + "\n")
                 print(Newindex)
-                final_string = textFG[:Newindex] + ";Ender easy system inserted code\n" + textF + textFG[Newindex:]
+                #returnToHeight = printHeight + LayerThickness
+                # FIx problem with hottend not returning to current print height
+                final_string = textFG[:Newindex] + ";Ender easy system inserted code\n" + textF + "G1 X117.5 Y117.5 F500\n G1 Z" + str(printHeight + layerT) + " F500\n" + textFG[Newindex:]
                 ff = open(dirname + "/" + curntNameGcode + "CNCMix.gcode", "w")
                 ff.write(final_string)
+                window.destroy()
+                time.sleep(0.5)
             elif sli1.get() == maxLayerNum:
                 Newindex = textFG.find("G91 ;Relative positioning\n")
                 print(Newindex)
